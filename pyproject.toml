@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "supply-shock-atlas"
+version = "0.1.0"
+description = "Detecting global supply chain shocks from daily vessel traffic at 2,000+ ports"
+requires-python = ">=3.10"
+dependencies = ["duckdb>=1.1", "xlrd>=2.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "xlwt>=1.3"]
+
+[project.scripts]
+atlas = "atlas.cli:main"
+
+[tool.setuptools]
+packages = ["atlas"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
