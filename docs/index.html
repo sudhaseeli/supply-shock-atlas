@@ -384,11 +384,14 @@ function findings() {
   const port = (c, name, list = "losers") => c[list].find(r => r.name === name) || (c.alt_losers || []).find(r => r.name === name);
   const pair = (c, name, list) => { const r = port(c, name, list); return r ? `${esc(r.name)} ${signed(r.change_pct)}` : null; };
   const worst = [...hz.countries].sort((a, b) => a.change_pct - b.change_pct)[0], jebel = port(hz, "Jebel Ali");
+  const strait = hz.chokepoints.find(k => k.name === "Strait of Hormuz"), panama = chokeChange(pan, "Panama Canal");
+  const transits = (c, names) => names.filter(n => chokeChange(c, n) != null).map(n => `${n} ${signed(chokeChange(c, n))}`).join(", ");
+  const redTransits = transits(red, ["Bab el-Mandeb Strait", "Suez Canal", "Cape of Good Hope"]);
   const rows = [];
-  rows.push(`<b>The Hormuz disruption is the largest the detector found.</b> Ports inside the Persian Gulf have handled ${Math.abs(hz.zone_total.change_pct)}% fewer ship calls since March 2026 than a year earlier, about ${num(hz.zone_total.now)} a week instead of ${num(hz.zone_total.before)}. ${jebel ? `Jebel Ali fell from ${num(jebel.calls_before)} to ${num(jebel.calls_now)} a week, and ` : ""}${esc(worst.country)} fell furthest, at ${signed(worst.change_pct)}.`);
+  rows.push(`<b>The Hormuz disruption is the largest the detector found.</b> Ports inside the Persian Gulf have handled ${Math.abs(hz.zone_total.change_pct)}% fewer ship calls since March 2026 than a year earlier, about ${num(hz.zone_total.now)} a week instead of ${num(hz.zone_total.before)}. ${jebel ? `Jebel Ali fell from ${num(jebel.calls_before)} to ${num(jebel.calls_now)} a week, and ` : ""}${esc(worst.country)} fell furthest, at ${signed(worst.change_pct)}.${strait ? ` Tracked transits through the strait fell ${Math.abs(strait.change_pct)}%, from about ${num(strait.transits_before)} a week to ${num(strait.transits_now)}, though ships that switch off their trackers wouldn't be counted.` : ""}`);
   rows.push(`<b>Being outside the strait wasn't enough.</b> ${pair(hz, "Fujairah", "alt_losers")} sits just beyond Hormuz and still fell sharply. Meanwhile ${[pair(hz, "Karachi", "winners"), pair(hz, "Kandla", "winners")].filter(Boolean).join(" and ")} rose. The wider region ended ${signed(hz.alt_total.change_pct)}, far too little to replace what the Gulf lost.`);
-  rows.push(`<b>The Red Sea attacks show up as a redirection.</b> In the year after December 2023, Red Sea and Suez ports fell ${Math.abs(red.zone_total.change_pct)}%, with ${[pair(red, "King Abdullah Port"), pair(red, "Aqaba")].filter(Boolean).join(" and ")}. On the route around Africa, ${[pair(red, "Cape Town", "winners"), pair(red, "Las Palmas (de Gran Canaria)", "winners")].filter(Boolean).join(" and ")}.`);
-  rows.push(`<b>Some shocks don't show up at ports.</b> During the Panama Canal drought, ports in Panama changed only ${signed(pan.zone_total.change_pct)}, because a canal can restrict transits while ships keep calling at its ports. Baltimore is the opposite: ${signed(bal.zone_total.change_pct)} in the 11 weeks after the bridge collapse, with ${pair(bal, "Wilmington, DE", "winners")} and ${pair(bal, "Norfolk", "winners")} nearby.`);
+  rows.push(`<b>The Red Sea attacks show up as a redirection.</b> In the year after December 2023, Red Sea and Suez ports fell ${Math.abs(red.zone_total.change_pct)}%, with ${[pair(red, "King Abdullah Port"), pair(red, "Aqaba")].filter(Boolean).join(" and ")}. On the route around Africa, ${[pair(red, "Cape Town", "winners"), pair(red, "Las Palmas (de Gran Canaria)", "winners")].filter(Boolean).join(" and ")}.${redTransits ? ` Transits show the same shift: ${redTransits}.` : ""}`);
+  rows.push(`<b>Some shocks don't show up at ports.</b> During the Panama Canal drought, ports in Panama changed only ${signed(pan.zone_total.change_pct)}${panama != null ? `, while transits through the canal changed ${signed(panama)}` : ""}, because a canal can restrict transits while ships keep calling at its ports. Baltimore is the opposite: ${signed(bal.zone_total.change_pct)} in the 11 weeks after the bridge collapse, with ${pair(bal, "Wilmington, DE", "winners")} and ${pair(bal, "Norfolk", "winners")} nearby.`);
   const total = D.backtest.reduce((a, b) => a + b.port_events, 0), det = D.backtest.reduce((a, b) => a + b.detected, 0);
   const pl = D.backtest.reduce((a, b) => a + (b.placebo_pct ?? 0) * b.port_events, 0) / total, strike = D.backtest_named.find(n => n.name === "US PORTS STRIKE");
   rows.push(`<b>The detector beats chance by about ${Math.round(det / total * 100 / pl)} times, but it misses short events.</b> It fired at ${Math.round(det / total * 100)}% of ${num(total)} logged port-events, against ${Math.round(pl)}% for the same ports a year earlier. Because it scores whole weeks, it's built for sustained shocks${strike ? `: the two-day US port strike triggered alarms at only ${strike.detected} of ${strike.ports} ports` : ""}.`);
@@ -407,7 +410,7 @@ function findings() {
 let chokeChart;
 const lineOpts = (extra = {}) => ({responsive: true, maintainAspectRatio: false, animation: false, interaction: {mode: "index", intersect: false},
   plugins: {legend: {position: "bottom", labels: {boxWidth: 10, boxHeight: 10, color: css("--ink-2")}}, tooltip: {}, ...extra.plugins},
-  scales: {x: {type: "category", grid: {display: false}, ticks: {color: css("--muted"), autoSkip: true, maxTicksLimit: 8, maxRotation: 0, callback(v) { const l = this.getLabelForValue(v); return fmtWeek(l).replace(/^\d+ /, "").replace(/^[A-Za-z]+ \d+, /, ""); }}},
+  scales: {x: {type: "category", grid: {display: false}, ticks: {color: css("--muted"), autoSkip: true, maxTicksLimit: 8, maxRotation: 0, callback(v) { const l = this.getLabelForValue(v); return fmtWeek(l).replace(/ \d+, /, " "); }}},
     y: {beginAtZero: true, grid: {color: css("--grid")}, ticks: {color: css("--muted")}, border: {display: false}, ...(extra.y || {})}}});
 const startLine = {id: "startLine", afterDatasetsDraw(ch, _, o) {
   if (o.index == null || o.index < 0) return; const x = ch.scales.x.getPixelForValue(o.index), {top, bottom} = ch.chartArea, c = ch.ctx;
@@ -437,7 +440,7 @@ function showCrisis(id) {
   const colors = [css("--s2"), css("--s1"), css("--s3"), css("--s4"), css("--s5")];
   const look = new Map(c.series.map(s => [s.series + s.week, s.idx]));
   $("chTitle").textContent = `Weekly traffic, indexed so the 26 weeks before the crisis = 100`;
-  const totals = `${c.zone_name} ${signed(c.zone_total.change_pct)} and ${c.alt_name.toLowerCase()} ${signed(c.alt_total.change_pct)} against the same weeks a year earlier`;
+  const totals = `${c.zone_name} ${signed(c.zone_total.change_pct)} and ${c.alt_name} ${signed(c.alt_total.change_pct)} against the same weeks a year earlier`;
   const chokes = c.chokepoints.length ? " · Transits: " + c.chokepoints.map(k => `${k.name} ${signed(k.change_pct)}`).join(", ") : "";
   $("chCap").textContent = `${totals}${c.end ? "" : ", with the crisis still open in the IMF log"}.${chokes}`;
   if (chokeChart) chokeChart.destroy();
