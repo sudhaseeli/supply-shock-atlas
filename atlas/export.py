@@ -26,7 +26,7 @@ def map_frames(con: duckdb.DuckDBPyConnection) -> dict:
         SELECT p.portid AS id, p.portname AS name, p.country, round(p.lat, 2) AS lat, round(p.lon, 2) AS lon,
                round(median(s.baseline), 1) AS normal
         FROM gold.port_scores s JOIN silver.ports p USING (portid)
-        GROUP BY ALL ORDER BY normal DESC LIMIT {MAP_PORTS}
+        GROUP BY ALL ORDER BY normal DESC, id LIMIT {MAP_PORTS}
     """)
     index = {p["id"]: i for i, p in enumerate(ports)}
     weeks = [r[0] for r in con.execute("SELECT DISTINCT week FROM gold.port_scores ORDER BY week").fetchall()]
