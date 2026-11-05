@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Supply Shock Atlas</title>
+<meta name="description" content="Detecting global supply chain shocks from daily vessel traffic at 2,000+ ports, tested against the IMF's own disruption log.">
+<style>
+:root{
+  color-scheme:light;
+  --page:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--muted:#6f6d68;--grid:#e1e0d9;--axis:#c3c2b7;--ring:rgba(11,11,11,.1);
+  --s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100;--s5:#e87ba4;--good:#0ca30c;--bad:#d03b3b;
+  --land:#e8e7e1;--neutral:#a3a19a;
+  --down-3:#c62f2f;--down-2:#e34948;--down-1:#ee9391;--up-1:#86b6ef;--up-2:#5598e7;--up-3:#256abf;
+  --wash:rgba(11,11,11,.05);
+}
+@media (prefers-color-scheme:dark){:root:where(:not([data-theme="light"])){
+  color-scheme:dark;
+  --page:#0d0d0d;--surface:#1a1a19;--ink:#f0efec;--ink-2:#c3c2b7;--muted:#9a9890;--grid:#2c2c2a;--axis:#383835;--ring:rgba(255,255,255,.1);
+  --s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;
+  --land:#2c2c2a;--neutral:#716f69;
+  --down-3:#ff6b6b;--down-2:#e66767;--down-1:#a85555;--up-1:#2f5f99;--up-2:#3987e5;--up-3:#86b6ef;
+  --wash:rgba(255,255,255,.07);
+}}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --page:#0d0d0d;--surface:#1a1a19;--ink:#f0efec;--ink-2:#c3c2b7;--muted:#9a9890;--grid:#2c2c2a;--axis:#383835;--ring:rgba(255,255,255,.1);
+  --s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;
+  --land:#2c2c2a;--neutral:#716f69;
+  --down-3:#ff6b6b;--down-2:#e66767;--down-1:#a85555;--up-1:#2f5f99;--up-2:#3987e5;--up-3:#86b6ef;
+  --wash:rgba(255,255,255,.07);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+a{color:var(--s1)}
+.wrap{max-width:1180px;margin:0 auto;padding:0 16px}
+header{padding:36px 0 18px}
+.kicker{font-size:12.5px;color:var(--muted);letter-spacing:.02em}
+h1{font-size:clamp(32px,5.4vw,52px);line-height:1.05;margin:6px 0 10px;letter-spacing:-.025em;font-weight:680}
+.lede{font-size:clamp(16px,2vw,19px);color:var(--ink-2);max-width:72ch;margin:0}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;font-size:13px}
+.chip{padding:4px 11px;border:1px solid var(--ring);border-radius:99px;color:var(--ink-2);background:var(--surface);text-decoration:none}
+.chip.ok{color:var(--ink)}
+section{padding:26px 0 8px}
+h2{font-size:clamp(21px,2.8vw,28px);margin:0 0 4px;letter-spacing:-.015em;font-weight:650;text-wrap:balance}
+h3{font-size:15px;margin:0 0 3px;font-weight:620}
+.sub{color:var(--ink-2);margin:0 0 14px;max-width:76ch}
+.card{background:var(--surface);border:1px solid var(--ring);border-radius:14px;padding:16px;min-width:0}
+.cap{font-size:12.5px;color:var(--muted);margin:8px 0 0}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-top:14px}
+.kpi b{display:block;font-size:30px;line-height:1.1;font-weight:650;letter-spacing:-.02em}
+.kpi span{font-size:13px;color:var(--ink-2)}
+.findings{margin:0;padding:0;list-style:none;display:grid;gap:12px}
+.findings li{padding-left:14px;border-left:3px solid var(--grid)}
+.findings b{font-weight:640}
+/* map */
+.mapcard{padding:0;overflow:hidden}
+.maphead{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;padding:12px 16px}
+.play{font:600 14px system-ui,sans-serif;border:0;border-radius:99px;padding:9px 18px;background:var(--ink);color:var(--surface);cursor:pointer;min-width:92px}
+.date{font-size:22px;font-weight:640;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.readout{font-size:13px;color:var(--ink-2)}
+.jumps{display:flex;flex-wrap:wrap;gap:6px;padding:0 16px 12px}
+.jumps button{font:500 12.5px system-ui,sans-serif;padding:5px 11px;border-radius:99px;border:1px solid var(--ring);background:none;color:var(--ink);cursor:pointer}
+.jumps button:hover,.jumps button[aria-pressed=true]{background:var(--wash)}
+#map{display:block;width:100%;aspect-ratio:1.95;cursor:crosshair;touch-action:pan-y}
+#strip{display:block;width:100%;height:84px;cursor:pointer;touch-action:pan-y}
+.news{min-height:40px;padding:8px 16px;font-size:13.5px;color:var(--ink-2);border-top:1px solid var(--ring)}
+.news b{color:var(--ink)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;padding:10px 16px 14px;font-size:12.5px;color:var(--ink-2);border-top:1px solid var(--ring)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.tip{position:fixed;z-index:30;pointer-events:none;background:var(--surface);border:1px solid var(--ring);border-radius:9px;padding:7px 10px;font-size:12.5px;box-shadow:0 6px 22px rgba(0,0,0,.18);display:none;max-width:240px}
+.tip b{display:block}
+/* tabs & tables */
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.tabs button{font:550 13.5px system-ui,sans-serif;padding:7px 14px;border-radius:99px;border:1px solid var(--ring);background:var(--surface);color:var(--ink);cursor:pointer}
+.tabs button[aria-selected=true]{background:var(--ink);color:var(--surface);border-color:transparent}
+.chart{position:relative;height:290px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{font-weight:550;color:var(--muted);text-align:left;font-size:12px;padding:5px 6px;border-bottom:1px solid var(--axis)}
+td{padding:6px;border-bottom:1px solid var(--grid);font-variant-numeric:tabular-nums}
+td.n,th.n{text-align:right}
+td small{color:var(--muted);display:block;font-size:11.5px;line-height:1.3}
+.scroll{overflow-x:auto}
+.bars{display:grid;gap:10px}
+.barrow{display:grid;grid-template-columns:minmax(120px,190px) 1fr;gap:10px;align-items:center;font-size:13.5px}
+.track{display:grid;gap:3px}
+.bar{height:11px;border-radius:0 4px 4px 0;min-width:2px}
+.barlab{font-size:11.5px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.pair{display:flex;align-items:center;gap:7px}
+.key{display:flex;gap:14px;font-size:12.5px;color:var(--ink-2);margin-bottom:10px;flex-wrap:wrap}
+.key i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px}
+.dq{list-style:none;margin:0;padding:0;font-size:13px;display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:4px 18px}
+.dq li{display:flex;gap:8px;padding:4px 0;border-bottom:1px solid var(--grid)}
+.dq em{font-style:normal;color:var(--muted);margin-left:auto;text-align:right;font-size:12px}
+.flow{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;font-size:13px}
+.flow div{flex:1 1 170px;padding:11px 12px;border:1px solid var(--ring);border-radius:10px}
+.flow b{display:block}
+footer{padding:30px 0 44px;color:var(--muted);font-size:13px}
+#err{display:none;padding:20px}
+@media (max-width:820px){.grid2{grid-template-columns:1fr}#map{aspect-ratio:1.6}.barrow{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="kicker">Supply chain and data engineering project · Sudha Rani Seeli</div>
+  <h1>Supply Shock Atlas</h1>
+  <p class="lede" id="lede">Which of the world's ports went abnormally quiet, and when? This pipeline scores every port, every week, from satellite ship tracking.</p>
+  <div class="chips" id="chips"></div>
+</header>
+<div id="err" class="card">The data file couldn't be loaded. If you opened this page from disk, serve the folder with <code>python -m http.server -d docs</code>.</div>
+
+<div class="card mapcard" id="mapcard">
+  <div class="maphead">
+    <button class="play" id="play" type="button">▶ Play</button>
+    <div class="date" id="date" aria-live="polite"></div>
+    <div class="readout" id="readout"></div>
+  </div>
+  <div class="jumps" id="jumps"></div>
+  <canvas id="map" aria-label="World map of ports. Red dots are ports with abnormally low traffic in the selected week; blue dots are abnormally high."></canvas>
+  <div class="news" id="news"></div>
+  <canvas id="strip" aria-label="Global stress index by week. Click to move the map to that week."></canvas>
+  <div class="legend">
+    <span><i style="background:var(--down-3)"></i>Traffic 70%+ below expected</span>
+    <span><i style="background:var(--down-2)"></i>50–70% below</span>
+    <span><i style="background:var(--down-1)"></i>30–50% below</span>
+    <span><i style="background:var(--neutral)"></i>Normal</span>
+    <span><i style="background:var(--up-2)"></i>Abnormal surge</span>
+    <span>◇ Chokepoint</span>
+    <span>The curve shows the share of world port traffic in alarm. Click it to jump to any week.</span>
+  </div>
+</div>
+
+<section>
+  <h2>What the data shows</h2>
+  <ul class="findings card" id="findings"></ul>
+  <div class="kpis" id="kpis"></div>
+</section>
+
+<section>
+  <h2>Four crises, side by side</h2>
+  <p class="sub">Each crisis is compared with the same weeks one year earlier, which removes seasonality. The tables rank ports by the number of weekly calls lost or gained, in the affected zone and where traffic could have gone.</p>
+  <p class="cap" id="feedNote" style="margin:-6px 0 12px"></p>
+  <div class="tabs" role="tablist" id="tabs"></div>
+  <div class="card" id="crisisChartCard" style="margin-bottom:14px">
+    <h3 id="chTitle"></h3>
+    <div class="chart"><canvas id="chokeChart"></canvas></div>
+    <p class="cap" id="chCap"></p>
+  </div>
+  <div class="grid2">
+    <div class="card"><h3 id="zoneTitle"></h3><div class="scroll" id="losers"></div></div>
+    <div class="card"><h3 id="altTitle"></h3><div class="scroll" id="winners"></div></div>
+  </div>
+  <div class="card" id="countryCard" style="margin-top:14px"><h3>By country, inside the affected zone</h3><div class="scroll" id="countries"></div></div>
+  <p class="cap">Traffic that shifts at the same time isn't proof that one caused the other. Gains can also reflect growth that was already under way. Zones are drawn as map boxes around each crisis.</p>
+</section>
+
+<section>
+  <h2>Does the detector actually work?</h2>
+  <p class="sub">The detector never sees the IMF's disruption log. Afterwards, each logged event is checked for an alarm at the affected ports. As a placebo, the same ports are checked over the same dates one year earlier, which shows how often an alarm would fire by chance.</p>
+  <div class="grid2">
+    <div class="card">
+      <h3>Detection rate vs chance, by event type</h3>
+      <div class="key"><span><i style="background:var(--s1)"></i>Alarm during the logged event</span><span><i style="background:var(--neutral)"></i>Placebo: same window a year earlier</span></div>
+      <div class="bars" id="backtest"></div>
+      <p class="cap" id="btCap"></p>
+    </div>
+    <div class="card">
+      <h3>Largest disruptions found</h3>
+      <div class="scroll" id="longest"></div>
+      <p class="cap" id="evCap"></p>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <h3>How long detected ports took to recover</h3>
+    <div class="scroll" id="recovery"></div>
+    <p class="cap">Weeks from the first alarm until traffic is back within 10% of expected.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Which countries lean on one port?</h2>
+  <p class="sub">The busiest countries where one port handles at least 60% of maritime imports, according to the IMF port database. Calls a week covers the last 52 weeks.</p>
+  <div class="card scroll" id="exposure"></div>
+</section>
+
+<section>
+  <h2>Do ship movements track supply chain pressure?</h2>
+  <p class="sub">The New York Fed's Global Supply Chain Pressure Index is built from freight costs and manufacturing surveys, not ship tracking, so it's an independent check on the stress index.</p>
+  <div class="grid2">
+    <div class="card"><h3>NY Fed pressure index (standard deviations from average)</h3><div class="chart" style="height:210px"><canvas id="gscpi"></canvas></div></div>
+    <div class="card"><h3>Port stress index (% of traffic in alarm)</h3><div class="chart" style="height:210px"><canvas id="stress"></canvas></div></div>
+  </div>
+  <div class="card" style="margin-top:14px"><h3>Correlation at each lag</h3><div class="chart" style="height:190px"><canvas id="lags"></canvas></div><p class="cap" id="lagCap"></p></div>
+</section>
+
+<section>
+  <h2>How it's built</h2>
+  <div class="flow card" style="margin-bottom:14px">
+    <div><b>Bronze</b>Resumable, verified downloads from a flaky API. Each port's row count is checked against the server.</div>
+    <div><b>Silver</b>Revisions resolved, zero days rebuilt, a complete weekly panel, network-wide feed outages flagged.</div>
+    <div><b>Gold</b>Robust scoring against each port's history and season, alarm episodes, backtest and crisis marts in DuckDB SQL.</div>
+    <div><b>Quality gate</b>Critical failures stop the run, so nothing wrong gets published.</div>
+    <div><b>Atlas</b>Static JSON and this page, hosted on GitHub Pages.</div>
+  </div>
+  <div class="card"><h3 id="dqTitle"></h3><ul class="dq" id="dq"></ul></div>
+</section>
+
+<footer>
+  <span id="source"></span>
+  Sources: UN Global Platform; IMF PortWatch (portwatch.imf.org); Federal Reserve Bank of New York, Global Supply Chain Pressure Index.
+  Port calls are estimated from AIS vessel signals, so they measure ship traffic, not goods delivered.
+  <a href="https://github.com/sudhaseeli/supply-shock-atlas">Code on GitHub</a>
+</footer>
+</div>
+<div class="tip" id="tip"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/d3-array@3.2.4/dist/d3-array.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-geo@3.1.1/dist/d3-geo.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const num = n => Math.round(n).toLocaleString("en-US");
+const fmtWeek = d => new Date(d + "T00:00:00Z").toLocaleDateString("en-US", {day:"numeric", month:"short", year:"numeric", timeZone:"UTC"});
+const signed = v => (v > 0 ? "+" : "") + (Math.round(v * 10) / 10) + "%";
+const EVENT_TYPES = {TC:"Tropical cyclone",EQ:"Earthquake",FL:"Flood",OT:"Conflict, strike or accident",DR:"Drought",WF:"Wildfire",VO:"Volcano"};
+const JUMPS = [["COVID-19","2020-04-06"],["Shanghai lockdown","2022-04-18"],["Red Sea","2024-01-15"],["Baltimore","2024-04-01"],["US port strike","2024-10-07"],["Hormuz","2026-03-16"],["Latest",null]];
+
+let D, frame = 0, timer = null, land = null, proj = null, mapW = 0, mapH = 0, points = [], landCanvas = null;
+
+fetch("data/atlas.json").then(r => { if (!r.ok) throw 0; return r.json(); }).then(d => { D = d; init(); })
+  .catch(() => { $("err").style.display = "block"; $("mapcard").style.display = "none"; });
+
+function init() {
+  const m = D.meta;
+  $("lede").textContent = `Which of the world's ports went abnormally quiet, and when? This pipeline scores ${num(m.ports)} ports every week from satellite ship tracking, then tests its alarms against the IMF's own disruption log.`;
+  const dq = D.data_quality, passed = dq.checks.filter(c => c.passed).length;
+  $("chips").innerHTML = [
+    `<span class="chip ok">${dq.passed ? "✓" : "✗"} ${passed}/${dq.checks.length} quality checks passed</span>`,
+    `<span class="chip">${(m.port_calls / 1e6).toFixed(1)}M port calls</span>`,
+    `<span class="chip">${num(m.countries)} countries and territories</span>`,
+    `<span class="chip">Data to ${fmtWeek(m.last_day)}</span>`,
+    `<a class="chip" href="https://github.com/sudhaseeli/supply-shock-atlas">Code on GitHub</a>`,
+  ].join("");
+  frame = D.map.weeks.length - 1;
+  $("jumps").innerHTML = JUMPS.map(([label, w], i) => `<button type="button" data-i="${i}">${esc(label)}</button>`).join("");
+  $("jumps").onclick = e => {
+    const b = e.target.closest("button"); if (!b) return;
+    const w = JUMPS[+b.dataset.i][1];
+    stop(); seek(w ? nearestWeek(w) : D.map.weeks.length - 1);
+    [...$("jumps").children].forEach(c => c.setAttribute("aria-pressed", c === b));
+  };
+  $("play").onclick = () => timer ? stop() : start();
+  setupMap(); findings(); crises(); report(); exposure(); pressure(); quality();
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { drawLand(); draw(); });
+  new ResizeObserver(() => { sizeMap(); draw(); }).observe($("map"));
+}
+
+function nearestWeek(w) { let i = D.map.weeks.findIndex(x => x >= w); return i < 0 ? D.map.weeks.length - 1 : i; }
+function start() { if (frame >= D.map.weeks.length - 1) frame = 0; $("play").textContent = "❚❚ Pause"; timer = setInterval(() => { if (frame >= D.map.weeks.length - 1) return stop(); frame++; draw(); }, 130); }
+function stop() { clearInterval(timer); timer = null; $("play").textContent = "▶ Play"; }
+function seek(i) { frame = Math.max(0, Math.min(D.map.weeks.length - 1, i)); draw(); }
+
+/* ---------- map ---------- */
+function setupMap() {
+  fetch("https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/land-110m.json").then(r => r.json()).then(t => {
+    land = topojson.feature(t, t.objects.land); sizeMap(); draw();
+  }).catch(() => {});
+  sizeMap(); draw();
+  const map = $("map"), tip = $("tip");
+  map.addEventListener("mousemove", e => {
+    const r = map.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    let best = null, bd = 196;
+    for (const p of points) { const d = (p.x - x) ** 2 + (p.y - y) ** 2; if (d < bd) { bd = d; best = p; } }
+    if (!best) { tip.style.display = "none"; return; }
+    const status = {0:"70%+ below expected",1:"50–70% below expected",2:"30–50% below expected",3:"Slightly below expected",4:"About as expected",5:"Slightly above expected",6:"Surge: 30–60% above",7:"Surge: 60–100% above",8:"Surge: 100%+ above"}[best.b];
+    tip.innerHTML = best.choke
+      ? `<b>${esc(best.name)}</b>Chokepoint · ${num(best.vessels)} vessels a year`
+      : `<b>${esc(best.name)}</b>${esc(best.country)}<br>${status}<br>Normally about ${best.normal} calls a week`;
+    tip.style.display = "block";
+    tip.style.left = Math.min(e.clientX + 14, innerWidth - 250) + "px"; tip.style.top = (e.clientY + 14) + "px";
+  });
+  map.addEventListener("mouseleave", () => tip.style.display = "none");
+  const strip = $("strip");
+  let dragging = false;
+  const fromStrip = e => { const r = strip.getBoundingClientRect(); stop(); seek(Math.round((e.clientX - r.left) / r.width * (D.map.weeks.length - 1))); };
+  strip.addEventListener("pointerdown", e => { dragging = true; strip.setPointerCapture(e.pointerId); fromStrip(e); });
+  strip.addEventListener("pointermove", e => { if (dragging) fromStrip(e); });
+  strip.addEventListener("pointerup", () => dragging = false);
+}
+
+function sizeMap() {
+  const map = $("map"), r = map.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
+  mapW = r.width; mapH = r.height; if (!mapW) return;
+  map.width = mapW * dpr; map.height = mapH * dpr;
+  const strip = $("strip"), sr = strip.getBoundingClientRect();
+  strip.width = sr.width * dpr; strip.height = sr.height * dpr;
+  // fitted to the shipping latitudes, leaving out Antarctica and the high Arctic
+  proj = d3.geoNaturalEarth1().fitExtent([[6, 6], [mapW - 6, mapH - 6]], {type: "MultiPoint", coordinates: [[-180, 74], [180, 74], [-180, -56], [180, -56], [0, 74], [0, -56]]});
+  drawLand();
+}
+
+function drawLand() {
+  if (!mapW) return;
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  landCanvas = document.createElement("canvas"); landCanvas.width = mapW * dpr; landCanvas.height = mapH * dpr;
+  const c = landCanvas.getContext("2d"); c.scale(dpr, dpr);
+  if (land) { c.fillStyle = css("--land"); c.beginPath(); d3.geoPath(proj, c)(land); c.fill(); }
+}
+
+function draw() {
+  if (!D || !mapW || !proj) return;
+  const dpr = Math.min(devicePixelRatio || 1, 2), map = $("map"), c = map.getContext("2d");
+  c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, mapW, mapH);
+  if (landCanvas) c.drawImage(landCanvas, 0, 0, mapW, mapH);
+  const f = D.map.frames[frame], colors = {0:css("--down-3"),1:css("--down-2"),2:css("--down-1"),6:css("--up-1"),7:css("--up-2"),8:css("--up-3")}, neutral = css("--neutral");
+  const scale = Math.max(.65, mapW / 1100);
+  points = []; const hot = []; let down = 0, up = 0;
+  c.fillStyle = neutral; c.globalAlpha = .42;
+  D.map.ports.forEach((p, i) => {
+    const b = f[i]; if (b === ".") return;
+    const xy = proj([p.lon, p.lat]); if (!xy) return;
+    const r = (1.1 + Math.sqrt(p.normal) * .13) * scale, pt = {x: xy[0], y: xy[1], r, b: +b, name: p.name, country: p.country, normal: Math.round(p.normal)};
+    points.push(pt);
+    if (b < "3" || b > "5") { hot.push(pt); b < "3" ? down++ : up++; return; }
+    c.beginPath(); c.arc(xy[0], xy[1], r, 0, 7); c.fill();
+  });
+  c.globalAlpha = .92; c.lineWidth = 1; c.strokeStyle = css("--surface");
+  hot.sort((a, b) => b.r - a.r).forEach(p => { c.fillStyle = colors[p.b]; c.beginPath(); c.arc(p.x, p.y, Math.max(p.r * 1.35, 3.6 * scale), 0, 7); c.fill(); c.stroke(); });
+  c.globalAlpha = 1;
+  // chokepoints
+  c.font = `500 ${mapW < 600 ? 9 : 11}px system-ui,sans-serif`; c.textBaseline = "middle";
+  const named = new Set(["Suez Canal","Panama Canal","Strait of Hormuz","Bab el-Mandeb Strait","Cape of Good Hope","Malacca Strait"]);
+  D.chokepoints.filter(k => named.has(k.name)).forEach(k => {
+    const xy = proj([k.lon, k.lat]); if (!xy) return;
+    c.strokeStyle = css("--ink"); c.lineWidth = 1.2; c.beginPath();
+    c.moveTo(xy[0], xy[1] - 5); c.lineTo(xy[0] + 5, xy[1]); c.lineTo(xy[0], xy[1] + 5); c.lineTo(xy[0] - 5, xy[1]); c.closePath(); c.stroke();
+    points.push({x: xy[0], y: xy[1], choke: true, name: k.name, vessels: k.vessels, b: 4});
+    if (mapW >= 560) {
+      c.fillStyle = css("--ink-2");
+      const left = k.name === "Panama Canal" || k.name === "Suez Canal";
+      const label = k.name.replace(" Strait", "").replace("Strait of ", "").replace(" Canal", "");
+      c.textAlign = left ? "right" : "left"; c.fillText(label, xy[0] + (left ? -8 : 8), xy[1] + (k.name === "Suez Canal" ? -5 : 2));
+    }
+  });
+  const week = D.map.weeks[frame], s = D.stress.find(x => x.week === week);
+  $("date").textContent = "Week of " + fmtWeek(week);
+  $("readout").textContent = s ? `${num(down)} of the busiest ports in alarm · ${num(up)} surging · ${s.stress_index}% of world port traffic in alarm` : "";
+  const t = new Date(week + "T00:00:00Z").getTime();
+  const on = D.events.filter(e => { const a = new Date(e.start + "T00:00:00Z").getTime(), b = e.end ? new Date(e.end + "T00:00:00Z").getTime() : Date.now(); return a <= t + 6 * 864e5 && b >= t; })
+    .sort((a, b) => (b.type === "OT") - (a.type === "OT") || b.n_affected - a.n_affected).slice(0, 3);
+  $("news").innerHTML = on.length ? "<b>IMF log this week:</b> " + on.map(e => `${esc(titleCase(e.name))} (${esc(EVENT_TYPES[e.type] || e.type)})`).join(" · ") : "No major event in the IMF log this week.";
+  drawStrip();
+}
+function titleCase(s) { return /^[A-Z0-9 \-]+$/.test(s) ? s.toLowerCase().replace(/\b[a-z]/g, m => m.toUpperCase()).replace(/-(\d)/, "-$1") : s; }
+
+function drawStrip() {
+  const strip = $("strip"), r = strip.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2), c = strip.getContext("2d"), W = r.width, H = r.height;
+  c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
+  const weeks = D.map.weeks, byW = new Map(D.stress.map(s => [s.week, s.stress_index])), max = Math.max(...D.stress.map(s => s.stress_index), 1);
+  const px = i => i / (weeks.length - 1) * W, py = v => H - 18 - v / max * (H - 26);
+  c.beginPath(); c.moveTo(0, py(0)); weeks.forEach((w, i) => c.lineTo(px(i), py(byW.get(w) || 0))); c.lineTo(W, py(0)); c.closePath();
+  c.fillStyle = css("--down-2"); c.globalAlpha = .22; c.fill(); c.globalAlpha = 1;
+  c.beginPath(); weeks.forEach((w, i) => i ? c.lineTo(px(i), py(byW.get(w) || 0)) : c.moveTo(px(i), py(byW.get(w) || 0)));
+  c.strokeStyle = css("--down-2"); c.lineWidth = 1.5; c.stroke();
+  c.strokeStyle = css("--axis"); c.lineWidth = 1; c.beginPath(); c.moveTo(0, py(0) + .5); c.lineTo(W, py(0) + .5); c.stroke();
+  c.fillStyle = css("--muted"); c.font = "11px system-ui,sans-serif"; c.textBaseline = "alphabetic"; c.textAlign = "center";
+  let lastYear = null;
+  weeks.forEach((w, i) => { const y = w.slice(0, 4); if (y !== lastYear && w.slice(5, 7) === "01") { const x = px(i); if (x > 12 && x < W - 12) c.fillText(y, x, H - 4); lastYear = y; } });
+  const x = px(frame);
+  c.strokeStyle = css("--ink"); c.lineWidth = 1.5; c.beginPath(); c.moveTo(x, 2); c.lineTo(x, py(0)); c.stroke();
+}
+
+/* ---------- findings ---------- */
+function crisis(id) { return D.crises.find(c => c.id === id); }
+function chokeChange(c, name) { const k = c.chokepoints.find(x => x.name === name); return k ? k.change_pct : null; }
+function findings() {
+  const m = D.meta, hz = crisis("hormuz"), red = crisis("redsea"), pan = crisis("panama"), bal = crisis("baltimore");
+  const port = (c, name, list = "losers") => c[list].find(r => r.name === name) || (c.alt_losers || []).find(r => r.name === name);
+  const pair = (c, name, list) => { const r = port(c, name, list); return r ? `${esc(r.name)} ${signed(r.change_pct)}` : null; };
+  const worst = [...hz.countries].sort((a, b) => a.change_pct - b.change_pct)[0], jebel = port(hz, "Jebel Ali");
+  const rows = [];
+  rows.push(`<b>The Hormuz disruption is the largest the detector found.</b> Ports inside the Persian Gulf have handled ${Math.abs(hz.zone_total.change_pct)}% fewer ship calls since March 2026 than a year earlier, about ${num(hz.zone_total.now)} a week instead of ${num(hz.zone_total.before)}. ${jebel ? `Jebel Ali fell from ${num(jebel.calls_before)} to ${num(jebel.calls_now)} a week, and ` : ""}${esc(worst.country)} fell furthest, at ${signed(worst.change_pct)}.`);
+  rows.push(`<b>Being outside the strait wasn't enough.</b> ${pair(hz, "Fujairah", "alt_losers")} sits just beyond Hormuz and still fell sharply. Meanwhile ${[pair(hz, "Karachi", "winners"), pair(hz, "Kandla", "winners")].filter(Boolean).join(" and ")} rose. The wider region ended ${signed(hz.alt_total.change_pct)}, far too little to replace what the Gulf lost.`);
+  rows.push(`<b>The Red Sea attacks show up as a redirection.</b> In the year after December 2023, Red Sea and Suez ports fell ${Math.abs(red.zone_total.change_pct)}%, with ${[pair(red, "King Abdullah Port"), pair(red, "Aqaba")].filter(Boolean).join(" and ")}. On the route around Africa, ${[pair(red, "Cape Town", "winners"), pair(red, "Las Palmas (de Gran Canaria)", "winners")].filter(Boolean).join(" and ")}.`);
+  rows.push(`<b>Some shocks don't show up at ports.</b> During the Panama Canal drought, ports in Panama changed only ${signed(pan.zone_total.change_pct)}, because a canal can restrict transits while ships keep calling at its ports. Baltimore is the opposite: ${signed(bal.zone_total.change_pct)} in the 11 weeks after the bridge collapse, with ${pair(bal, "Wilmington, DE", "winners")} and ${pair(bal, "Norfolk", "winners")} nearby.`);
+  const total = D.backtest.reduce((a, b) => a + b.port_events, 0), det = D.backtest.reduce((a, b) => a + b.detected, 0);
+  const pl = D.backtest.reduce((a, b) => a + (b.placebo_pct ?? 0) * b.port_events, 0) / total, strike = D.backtest_named.find(n => n.name === "US PORTS STRIKE");
+  rows.push(`<b>The detector beats chance by about ${Math.round(det / total * 100 / pl)} times, but it misses short events.</b> It fired at ${Math.round(det / total * 100)}% of ${num(total)} logged port-events, against ${Math.round(pl)}% for the same ports a year earlier. Because it scores whole weeks, it's built for sustained shocks${strike ? `: the two-day US port strike triggered alarms at only ${strike.detected} of ${strike.ports} ports` : ""}.`);
+  const best = [...D.pressure_lags].sort((a, b) => b.correlation - a.correlation)[0];
+  rows.push(`<b>Ship movements and supply chain pressure are only loosely linked.</b> The stress index peaks at a correlation of ${best.correlation.toFixed(2)} with the NY Fed index, ${best.lag_months === 0 ? "in the same month" : Math.abs(best.lag_months) + " months " + (best.lag_months > 0 ? "ahead" : "behind")}. That's too weak to use as a forecast.`);
+  $("findings").innerHTML = rows.map(r => `<li>${r}</li>`).join("");
+  $("kpis").innerHTML = [
+    [num(m.ports), "ports with traffic"],
+    [(m.scored_port_weeks / 1e3).toFixed(0) + "K", "port-weeks scored"],
+    [num(m.alarms), "abnormal-drop alarms"],
+    [num(m.episodes), "disruption episodes"],
+  ].map(([b, s]) => `<div class="card kpi"><b>${b}</b><span>${s}</span></div>`).join("");
+}
+
+/* ---------- crises ---------- */
+let chokeChart;
+const lineOpts = (extra = {}) => ({responsive: true, maintainAspectRatio: false, animation: false, interaction: {mode: "index", intersect: false},
+  plugins: {legend: {position: "bottom", labels: {boxWidth: 10, boxHeight: 10, color: css("--ink-2")}}, tooltip: {}, ...extra.plugins},
+  scales: {x: {type: "category", grid: {display: false}, ticks: {color: css("--muted"), autoSkip: true, maxTicksLimit: 8, maxRotation: 0, callback(v) { const l = this.getLabelForValue(v); return fmtWeek(l).replace(/^\d+ /, "").replace(/^[A-Za-z]+ \d+, /, ""); }}},
+    y: {beginAtZero: true, grid: {color: css("--grid")}, ticks: {color: css("--muted")}, border: {display: false}, ...(extra.y || {})}}});
+const startLine = {id: "startLine", afterDatasetsDraw(ch, _, o) {
+  if (o.index == null || o.index < 0) return; const x = ch.scales.x.getPixelForValue(o.index), {top, bottom} = ch.chartArea, c = ch.ctx;
+  c.save(); c.strokeStyle = css("--ink"); c.setLineDash([4, 3]); c.beginPath(); c.moveTo(x, top); c.lineTo(x, bottom); c.stroke(); c.setLineDash([]);
+  c.fillStyle = css("--ink-2"); c.font = "11.5px system-ui,sans-serif"; c.textAlign = "left"; c.fillText("Crisis begins", x + 5, top + 11); c.restore(); }};
+
+function crises() {
+  $("tabs").innerHTML = D.crises.map((c, i) => `<button type="button" role="tab" data-id="${c.id}" aria-selected="${i === 0}">${esc(c.name)}</button>`).join("");
+  $("tabs").onclick = e => { const b = e.target.closest("button"); if (!b) return; [...$("tabs").children].forEach(x => x.setAttribute("aria-selected", x === b)); showCrisis(b.dataset.id); };
+  showCrisis(D.crises[0].id);
+  if (!D.crises.some(c => c.chokepoints.length)) $("feedNote").textContent = "The IMF's chokepoint feed was offline during this run, so these charts use port calls only and don't show canal or strait transits.";
+}
+function portTable(rows) {
+  return `<table><thead><tr><th>Port</th><th class="n">Weekly calls before</th><th class="n">During</th><th class="n">Change</th></tr></thead><tbody>${rows.map(r =>
+    `<tr><td>${esc(r.name)}<small>${esc(r.country)}</small></td><td class="n">${r.calls_before.toFixed(0)}</td><td class="n">${r.calls_now.toFixed(0)}</td><td class="n">${signed(r.change_pct)}</td></tr>`).join("")}</tbody></table>`;
+}
+function showCrisis(id) {
+  const c = crisis(id);
+  $("zoneTitle").textContent = `${c.zone_name}: ports that lost the most`;
+  $("altTitle").textContent = `${c.alt_name}: ports that gained the most`;
+  $("losers").innerHTML = portTable(c.losers.filter(r => r.delta < 0).slice(0, 10));
+  $("winners").innerHTML = portTable(c.winners.filter(r => r.delta > 0).slice(0, 10));
+  $("countryCard").style.display = c.countries.length > 1 ? "" : "none";
+  $("countries").innerHTML = `<table><thead><tr><th>Country</th><th class="n">Ports</th><th class="n">Weekly calls before</th><th class="n">During</th><th class="n">Change</th></tr></thead><tbody>${c.countries.map(r =>
+    `<tr><td>${esc(r.country)}</td><td class="n">${r.ports}</td><td class="n">${num(r.before)}</td><td class="n">${num(r.now)}</td><td class="n">${signed(r.change_pct)}</td></tr>`).join("")}</tbody></table>`;
+  const names = [...new Set(c.series.map(s => s.series))], weeks = [...new Set(c.series.map(s => s.week))].sort();
+  const colors = [css("--s2"), css("--s1"), css("--s3"), css("--s4"), css("--s5")];
+  const look = new Map(c.series.map(s => [s.series + s.week, s.idx]));
+  $("chTitle").textContent = `Weekly traffic, indexed so the 26 weeks before the crisis = 100`;
+  const totals = `${c.zone_name} ${signed(c.zone_total.change_pct)} and ${c.alt_name.toLowerCase()} ${signed(c.alt_total.change_pct)} against the same weeks a year earlier`;
+  const chokes = c.chokepoints.length ? " · Transits: " + c.chokepoints.map(k => `${k.name} ${signed(k.change_pct)}`).join(", ") : "";
+  $("chCap").textContent = `${totals}${c.end ? "" : ", with the crisis still open in the IMF log"}.${chokes}`;
+  if (chokeChart) chokeChart.destroy();
+  chokeChart = new Chart($("chokeChart"), {type: "line", plugins: [startLine],
+    data: {labels: weeks, datasets: names.map((n, i) => ({label: n, borderColor: colors[i], backgroundColor: colors[i], borderWidth: 2, pointRadius: 0, tension: .15,
+      data: weeks.map(w => look.get(n + w) ?? null)}))},
+    options: {...lineOpts(), plugins: {...lineOpts().plugins, startLine: {index: weeks.findIndex(w => w >= c.start)}, tooltip: {callbacks: {title: i => "Week of " + fmtWeek(i[0].label)}}}}});
+}
+
+/* ---------- report card ---------- */
+function report() {
+  $("backtest").innerHTML = D.backtest.filter(b => b.port_events >= 3).map(b => `<div class="barrow"><div>${esc(b.event_type)}<br><small style="color:var(--muted)">${num(b.port_events)} port-events</small></div>
+    <div class="track"><div class="pair"><div class="bar" style="width:${b.detection_pct * .8}%;background:var(--s1)"></div><span class="barlab">${b.detection_pct}%</span></div>
+    <div class="pair"><div class="bar" style="width:${(b.placebo_pct ?? 0) * .8}%;background:var(--neutral)"></div><span class="barlab">${b.placebo_pct ?? "n/a"}${b.placebo_pct != null ? "%" : ""}</span></div></div></div>`).join("");
+  const ev = D.evidence, solo = ev.find(e => e.evidence === "This port only"), evTotal = ev.reduce((a, b) => a + b.n, 0);
+  $("evCap").textContent = `Lost calls are the shortfall against expected traffic. An alarm shows that traffic changed, not why: ${solo ? solo.n : 0} of the ${evTotal} episodes lasting 4+ weeks have no logged event or falling neighbours, so they could be real disruptions or changes in vessel tracking.`;
+  $("btCap").textContent = "Port-event: one logged event at one affected port with enough traffic to score. Event types with fewer than 3 are hidden.";
+  $("longest").innerHTML = `<table><thead><tr><th>Port</th><th>Started</th><th class="n">Weeks</th><th class="n">Worst</th><th class="n">Calls lost</th><th>Evidence</th></tr></thead><tbody>${D.longest.slice(0, 10).map(r =>
+    `<tr><td>${esc(r.name)}<small>${esc(r.country)}</small></td><td>${fmtWeek(r.start_week)}</td><td class="n">${r.weeks}</td><td class="n">${signed(r.worst_pct * 100)}</td><td class="n">${num(r.calls_lost)}</td><td>${esc(r.evidence)}</td></tr>`).join("")}</tbody></table>`;
+  $("recovery").innerHTML = `<table><thead><tr><th>Event type</th><th class="n">Port-events</th><th class="n">Median weeks</th><th class="n">Slowest 10% take</th><th class="n">Not yet recovered</th></tr></thead><tbody>${D.recovery.map(r =>
+    `<tr><td>${esc(EVENT_TYPES[r.type] || r.type)}</td><td class="n">${num(r.port_events)}</td><td class="n">${r.median_weeks ?? "n/a"}</td><td class="n">${r.p90_weeks != null ? Math.round(r.p90_weeks) + "+" : "n/a"}</td><td class="n">${r.not_recovered}</td></tr>`).join("")}</tbody></table>`;
+}
+
+function exposure() {
+  $("exposure").innerHTML = `<table><thead><tr><th>Country</th><th>Main port</th><th class="n">Its share of maritime imports</th><th class="n">Ports</th><th class="n">Calls a week</th></tr></thead><tbody>${D.exposure.filter(e => e.top_port_import_share != null).slice(0, 15).map(e =>
+    `<tr><td>${esc(e.country)}</td><td>${esc(e.top_port)}</td><td class="n">${e.top_port_import_share}%</td><td class="n">${e.ports}</td><td class="n">${num(e.weekly_calls)}</td></tr>`).join("")}</tbody></table>`;
+}
+
+function pressure() {
+  const labels = D.pressure.map(p => p.month);
+  const one = (id, key, col, label) => new Chart($(id), {type: "line", data: {labels, datasets: [{label, data: D.pressure.map(p => p[key]), borderColor: col, backgroundColor: col, borderWidth: 2, pointRadius: 0}]},
+    options: {...lineOpts({y: {beginAtZero: id === "stress"}}), plugins: {legend: {display: false}, tooltip: {callbacks: {title: i => i[0].label.slice(0, 7)}}}}});
+  one("gscpi", "gscpi", css("--s1"), "NY Fed index");
+  one("stress", "stress", css("--down-2"), "Port stress");
+  new Chart($("lags"), {type: "bar", data: {labels: D.pressure_lags.map(l => l.lag_months), datasets: [{label: "Correlation", data: D.pressure_lags.map(l => l.correlation), backgroundColor: css("--s1"), borderRadius: 4, barPercentage: .7}]},
+    options: {responsive: true, maintainAspectRatio: false, animation: false, plugins: {legend: {display: false}, tooltip: {callbacks: {title: i => { const l = +i[0].label; return l === 0 ? "Same month" : l > 0 ? `Port stress leads by ${l} mo` : `NY Fed index leads by ${-l} mo`; }}}},
+      scales: {x: {grid: {display: false}, ticks: {color: css("--muted")}, title: {display: true, text: "Months the port stress index leads the NY Fed index", color: css("--muted")}}, y: {grid: {color: css("--grid")}, ticks: {color: css("--muted")}, border: {display: false}}}}});
+  $("lagCap").textContent = `Based on ${D.pressure.length} months. Correlation doesn't show that one causes the other.`;
+}
+
+function quality() {
+  const q = D.data_quality, passed = q.checks.filter(c => c.passed).length;
+  $("dqTitle").textContent = `Latest run: ${passed} of ${q.checks.length} quality checks passed`;
+  $("dq").innerHTML = q.checks.map(c => `<li><span>${c.passed ? "✓" : "✗"}</span><span>${esc(c.name.replace(/_/g, " "))}</span><em>${esc(c.severity === "warn" ? "warn · " : "")}${esc(c.detail)}</em></li>`).join("");
+  $("source").textContent = `${num(D.meta.port_days)} active port-days. Data through ${fmtWeek(D.meta.last_day)}.`;
+}
+</script>
+</body>
+</html>
