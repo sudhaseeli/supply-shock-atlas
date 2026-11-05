@@ -12,10 +12,10 @@
 
 ## Key findings
 
-- **Hormuz is the largest disruption the detector found.** Since March 2026, ports inside the Persian Gulf have handled 68% fewer ship calls than a year earlier (943 → 300 a week). Jebel Ali fell from 175 to 27 calls a week, and Kuwait fell 90%.
+- **Hormuz is the largest disruption the detector found.** Since March 2026, ports inside the Persian Gulf have handled 68% fewer ship calls than a year earlier (943 → 300 a week). Jebel Ali fell from 175 to 27 calls a week, and Kuwait fell 90%. Tracked transits through the strait fell 93.5%, from about 665 a week to 43, though ships that switch off their trackers wouldn't be counted.
 - **Being outside the strait wasn't enough.** Fujairah, just beyond Hormuz, fell 54%, while Karachi rose 51% and Kandla 37%. The wider region gained only 5%, far too little to replace what the Gulf lost.
-- **The Red Sea attacks show up as a redirection.** In the following year, Red Sea and Suez ports fell 12%, including King Abdullah Port (−69%) and Aqaba (−38%). On the route around Africa, Cape Town rose 34% and Las Palmas 17%.
-- **Some shocks don't show up at ports.** Ports in Panama changed only −6% during the canal drought, since a canal can restrict transits while ships keep calling. Baltimore fell 58% after the bridge collapse.
+- **The Red Sea attacks show up as a redirection.** In the following year, Red Sea and Suez ports fell 12%, including King Abdullah Port (−69%) and Aqaba (−38%). On the route around Africa, Cape Town rose 34% and Las Palmas 17%. Transits show the same shift: Bab el-Mandeb −55%, Suez −45%, Cape of Good Hope +77%.
+- **Some shocks don't show up at ports.** Ports in Panama changed only −6% during the canal drought while canal transits fell 27%, since a canal can restrict transits while ships keep calling. Baltimore fell 58% after the bridge collapse.
 - **The detector beats chance by about 5×, but it misses short events.** It fired at 18% of 330 logged port-events, against 4% for the same ports a year earlier. The two-day 2024 US port strike triggered alarms at only 2 of 17 ports, because scoring is weekly.
 - **Ship traffic and supply chain pressure are only loosely linked.** Correlation with the NY Fed index peaks at 0.19, too weak to use as a forecast.
 
@@ -49,7 +49,8 @@ For each port and week:
 - **Short events are hard to see.** Scoring is weekly, so a two-day strike can vanish.
 - **An alarm says traffic changed, not why.** 137 of 237 episodes lasting 4+ weeks have no logged event or falling neighbours. Nhava Sheva's 2025 fall and 2026 rebound is the largest; it could be a real disruption or a change in vessel tracking.
 - **Seasonal factors use all years,** including later ones. That suits analysing the past, but a live system would need to use only earlier years.
-- **Chokepoint transits are optional.** The IMF's chokepoint feed was offline for this run, so the atlas uses port calls and shows that check as a warning. It's included automatically when the feed returns.
+- **Tracking can undercount.** Ship counts come from AIS, so vessels that switch off their transponders, which is more likely in a conflict, wouldn't be counted.
+- **Chokepoint transits are optional.** The IMF's chokepoint feed can stay offline for hours, so the pipeline keeps working from port calls and flags the gap as a warning. The feed was available for the published data.
 
 ## Data engineering notes
 
@@ -77,7 +78,7 @@ Critical failures exit with code 1 and nothing is exported.
 | Alarm rate plausible (0.2–8% of port-weeks) | warn |
 | Data under 21 days old, few feed outages, chokepoint feed present | warn |
 
-The latest run passed 15 of 16. The one warning is the chokepoint feed being offline.
+The latest run passed all 16.
 
 ## Run it
 
